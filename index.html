@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      /*#map {
+        height: 70%;
+      }*/
+      #pano {
+        height: 70%;
+      }
+      /*#map, #pano {
+        float: left;
+        height: 70%;
+        width: 45%;
+      }*/
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      .text-centre {
+        padding: .75rem 1.5rem;
+        font-size: 1.25rem;
+      }
+/*      #controls {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        z-index: 5;
+        background-color: #fff;
+        padding: 5px;
+        border: 1px solid #999;
+        text-align: center;
+        line-height: 30px;
+        padding-left: 10px;
+      }*/
+    </style>
+  </head>
+  <body>
+    <!-- The Modal -->
+    <div id="explainer" class="modal fade">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Calgary View Finder</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Find the thing we're asking you to.</p>
+            <p>Position it in the viewfinder.</p>
+            <p>Click submit and do another.</p>
+            <p>(Or if it looks good already, just skip.)</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="gotit" class="btn btn-primary" data-dismiss="modal">Got it!</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End Modal -->
+    <div id="controls">
+      <h3 id="objectname">...</h3>
+        <h4 style="color:grey">Centre it in the viewfinder and then:</h4>
+        <button id="submit" type="button" data="real" class="btn btn-outline-success btn-lg">Submit Panorama</button>
+        <button id="noneed" type="button" data="fake" class="btn btn-outline-warning btn-lg">No need. It's good already</button>
+    </div>
+    <div id="map"></div>
+    <div id="pano"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.10.0/d3.min.js"></script>
+    <!-- jQuery first, then Tether, then Bootstrap JS. -->
+    <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+    <!-- Firebase? -->
+    <script src="https://www.gstatic.com/firebasejs/4.3.0/firebase.js"></script>
+    <script>
+      // Initialize Firebase
+      var config = {
+        apiKey: "AIzaSyCVuzChbnlu2zUsfEVqvAwqofZbjx2jKZI",
+        authDomain: "yyc-viewfinder-1505182972419.firebaseapp.com",
+        databaseURL: "https://yyc-viewfinder-1505182972419.firebaseio.com",
+        projectId: "yyc-viewfinder-1505182972419",
+      };
+      firebase.initializeApp(config);
+    </script>
+    <script>
+
+    var database = firebase.database();
+    // var uid;
+    // firebase.auth().signInAnonymously();
+    // firebase.auth().onAuthStateChanged(function(user) {
+    //   if (user) {
+    //     // User is signed in.
+    //     uid = user.uid;
+    //   }
+    // });
+    //
+    $('#explainer').modal();
+    var panorama;
+    var dataPath = 'https://data.calgary.ca/resource/q5ii-bdni.json?$limit=100';
+    // load the data
+    d3.json(dataPath, function(error, data) {
+      if (error) throw error;
+      shuffleArray(data);
+
+      var oldOnes = [];
+      $('#gotit').click(function() {
+        oldOnes.unshift(data.pop());
+        newPano(panorama, oldOnes[0]);
+      });
+
+      $('#submit').click(function() {
+        oldOnes.unshift(data.pop());
+        submitPano(panorama, oldOnes[1]);
+        newPano(panorama, oldOnes[0]);
+      });
+      $('#noneed').click(function() {
+        oldOnes.unshift(data.pop());
+        newPano(panorama, oldOnes[0]);
+      });
+
+    });
+
+    function newPano(panorama, item) {
+      $('#objectname').html(item.name);
+
+      // var test = firebase.database().ref('/'+item.file_id+'/').val();
+      // console.log(test);
+
+      ///NEED TO CHECK IF THIS SHOULD BE .limitToLast or .limitToFirst depending on their order
+      // firebase.database().ref('/'+item.file_id+'/').orderByKey().limitToFirst(1).on("child_added", function(child) {
+      //   console.log(child.val().streetViewOptions);
+      // });
+
+      firebase.database().ref().child(item.file_id).orderByKey().limitToLast(1).once('value', function(snapshot) {
+        var exists = (snapshot.val() !== null);
+        dataExistsCallback(snapshot, exists);
+      })
+
+      function dataExistsCallback(values, exists) {
+        if (exists) {
+          var key = Object.keys(values.val())[0];
+          var details = values.val()[key];
+          panorama.setPano(details.streetViewOptions.pano);
+          panorama.setPov(details.streetViewOptions.pov);
+        } else {
+            panorama.setPosition({lat: +item.latitude,lng: +item.longitude});
+            panorama.setZoom(0);
+        }
+      }
+    }
+
+    function submitPano(panorama, item) {
+
+      // Write the pano details to firebase?
+      var panoID = panorama.getPano();
+      var panoPOV = panorama.getPov();
+      var panoHeading = panorama.getPov().heading;
+      var panoPitch = panorama.getPov().pitch;
+      var streetViewOptions = {
+        'pano': panoID,
+        'pov': panoPOV
+      };
+      item.streetViewOptions = streetViewOptions;
+      console.log(item)
+
+      //Write guess to database
+      var itemData = {
+        'file_id': item.file_id,
+        'name': item.name,
+        'latitude': item.latitude,
+        'longitude': item.longitude,
+        'streetViewOptions': item.streetViewOptions
+      };
+      var submissionKey = firebase.database().ref().child('locations').push().key;
+      var updates = {};
+      updates['/'+item.file_id+'/'+ submissionKey] = itemData;
+      firebase.database().ref().update(updates);
+
+    }
+
+    /**
+    * Randomize array element order in-place.
+    * Using Durstenfeld shuffle algorithm.
+    */
+    function shuffleArray(array) {
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    return array;
+    }
+
+    function initMap() {
+        var calgaryCentre = {lat: 51.051048, lng: -114.070446};
+
+        panorama = new google.maps.StreetViewPanorama(
+          document.getElementById('pano'), {
+            position: calgaryCentre,
+            pov: {
+              heading: 34,
+              pitch: 10
+            },
+            fullscreenControl: false,
+            addressControl: false
+        });
+
+      }
+
+    </script>
+
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBsVF2vL6rjgOv54V6Lwxi4ysnfPfgS4j8&callback=initMap">
+    </script>
+  </body>
+</html>
