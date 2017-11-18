@@ -51,16 +51,16 @@
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Calgary View Finder</h5>
+            <h5 class="modal-title">Calgary Public Art Viewfinder</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
           <div class="modal-body">
-            <p>Find the thing we're asking you to.</p>
-            <p>Position it in the viewfinder.</p>
-            <p>Click submit and do another.</p>
-            <p>(Or if it looks good already, just skip.)</p>
+            <p>Find the randomly-selected artwork using Google Streetview.</p>
+            <p>(If the initial view looks good already, just skip to the next.)</p>
+            <p>If you can make the view better, position it in the viewfinder and click submit to move on to another artwork.
+            <p>(If you can't seem to find the art, just skip to the next.)</p>
           </div>
           <div class="modal-footer">
             <button type="button" id="gotit" class="btn btn-primary" data-dismiss="modal">Got it!</button>
@@ -70,10 +70,13 @@
     </div>
     <!-- End Modal -->
     <div id="controls">
-      <h3 id="objectname">...</h3>
-        <h4 style="color:grey">Centre it in the viewfinder and then:</h4>
-        <button id="submit" type="button" data="real" class="btn btn-outline-success btn-lg">Submit Panorama</button>
-        <button id="noneed" type="button" data="fake" class="btn btn-outline-warning btn-lg">No need. It's good already</button>
+        <h3 id="objectname" style="font-style: italic">Title</h3>
+        <h4 id="artistname">Artist</h4>
+        <!-- <h4 style="color:grey">Centre it in the viewfinder and then:</h4> -->
+        <!-- <button id="start" type="button" data="start" class="btn btn-outline-warning btn-lg">I can't see it.</button> -->
+        <button id="submit" type="button" data="submit" class="btn btn-outline-success btn-lg">Submit image</button>
+        <button id="skip" type="button" data="skip" class="btn btn-outline-warning btn-lg">Skip to next</button>
+        <button id="info" type="button" data="info" class="btn btn-outline-secondary btn-lg">Info</button>
     </div>
     <div id="map"></div>
     <div id="pano"></div>
@@ -108,7 +111,8 @@
     //
     $('#explainer').modal();
     var panorama;
-    var dataPath = 'https://data.calgary.ca/resource/q5ii-bdni.json?$limit=100';
+    // var dataPath = 'https://data.calgary.ca/resource/q5ii-bdni.json?$limit=100';
+    var dataPath = 'https://data.calgary.ca/resource/t27m-7yj8.json';
     // load the data
     d3.json(dataPath, function(error, data) {
       if (error) throw error;
@@ -120,12 +124,17 @@
         newPano(panorama, oldOnes[0]);
       });
 
+      $('#start').click(function() {
+        console.log(panorama);
+        console.log(panorama.getZoom());
+      });
+
       $('#submit').click(function() {
         oldOnes.unshift(data.pop());
         submitPano(panorama, oldOnes[1]);
         newPano(panorama, oldOnes[0]);
       });
-      $('#noneed').click(function() {
+      $('#skip').click(function() {
         oldOnes.unshift(data.pop());
         newPano(panorama, oldOnes[0]);
       });
@@ -133,7 +142,31 @@
     });
 
     function newPano(panorama, item) {
-      $('#objectname').html(item.name);
+      $('#objectname').html(item.title);
+      $('#artistname').html(item.artist);
+      // $('#titles').attr('data-toggle', 'popover').attr('title', 'test')
+      var info = $('#info').popover(
+        {
+          'container': 'body',
+          'placement': 'bottom',
+          'trigger': 'hover'
+        }
+      );
+      $('#info')//.attr('data-container', 'body')
+        // .attr('data-placement', 'bottom')
+        .attr('data-title', item.address)
+        .attr('data-content', item.desc1)
+        // .attr('data-trigger', 'hover')
+
+      // {
+      //   'container': 'body',
+      //   'placement': 'bottom',
+      //   'title': item.address,
+      //   'content': item.desc1,
+      //   'trigger': 'hover'
+      // });
+      // console.log(item)
+      // <button type="button" class="btn btn-lg btn-danger" data-toggle="popover" title="Popover title" data-content="And here's some amazing content. It's very engaging. Right?">Click to toggle popover</button>
 
       // var test = firebase.database().ref('/'+item.file_id+'/').val();
       // console.log(test);
@@ -143,7 +176,7 @@
       //   console.log(child.val().streetViewOptions);
       // });
 
-      firebase.database().ref().child(item.file_id).orderByKey().limitToLast(1).once('value', function(snapshot) {
+      firebase.database().ref().child(item.art_id.replace(/\./g, '_')).orderByKey().limitToLast(1).once('value', function(snapshot) {
         var exists = (snapshot.val() !== null);
         dataExistsCallback(snapshot, exists);
       })
@@ -154,6 +187,7 @@
           var details = values.val()[key];
           panorama.setPano(details.streetViewOptions.pano);
           panorama.setPov(details.streetViewOptions.pov);
+          panorama.setZoom(details.streetViewOptions.zoom);
         } else {
             panorama.setPosition({lat: +item.latitude,lng: +item.longitude});
             panorama.setZoom(0);
@@ -166,26 +200,30 @@
       // Write the pano details to firebase?
       var panoID = panorama.getPano();
       var panoPOV = panorama.getPov();
-      var panoHeading = panorama.getPov().heading;
-      var panoPitch = panorama.getPov().pitch;
+      var panoHeading = panorama.getPov().heading; //Don't need these?
+      var panoPitch = panorama.getPov().pitch; //Don't need these?
+      var panoZoom = panorama.getZoom();
       var streetViewOptions = {
         'pano': panoID,
-        'pov': panoPOV
+        'pov': panoPOV,
+        'zoom': panoZoom
       };
       item.streetViewOptions = streetViewOptions;
       console.log(item)
 
       //Write guess to database
       var itemData = {
-        'file_id': item.file_id,
-        'name': item.name,
+        'art_id': item.art_id,
+        'art_id_mod': item.art_id.replace(/\./g, '_'),
+        'title': item.title,
+        'artist': item.artist,
         'latitude': item.latitude,
         'longitude': item.longitude,
         'streetViewOptions': item.streetViewOptions
       };
       var submissionKey = firebase.database().ref().child('locations').push().key;
       var updates = {};
-      updates['/'+item.file_id+'/'+ submissionKey] = itemData;
+      updates['/'+item.art_id.replace(/\./g, '_')+'/'+ submissionKey] = itemData;
       firebase.database().ref().update(updates);
 
     }
@@ -215,7 +253,11 @@
               pitch: 10
             },
             fullscreenControl: false,
-            addressControl: false
+            addressControl: false,
+            motionTracking: false,
+            motionTrackingControlOptions: {
+              position: google.maps.ControlPosition.LEFT_TOP
+            }
         });
 
       }
