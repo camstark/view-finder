@@ -74,9 +74,9 @@
         <h4 id="artistname">Artist</h4>
         <!-- <h4 style="color:grey">Centre it in the viewfinder and then:</h4> -->
         <!-- <button id="start" type="button" data="start" class="btn btn-outline-warning btn-lg">I can't see it.</button> -->
-        <button id="submit" type="button" data="submit" class="btn btn-outline-success btn-lg">Submit image</button>
-        <button id="skip" type="button" data="skip" class="btn btn-outline-warning btn-lg">Skip to next</button>
-        <button id="info" type="button" data="info" class="btn btn-outline-secondary btn-lg">Info</button>
+        <button id="submit" type="button" data="submit" class="btn btn-outline-success btn-md">Submit image</button>
+        <button id="skip" type="button" data="skip" class="btn btn-outline-warning btn-md">Skip to next</button>
+        <button id="info" type="button" class="btn btn-outline-secondary btn-md">Info</button>
     </div>
     <div id="map"></div>
     <div id="pano"></div>
@@ -145,17 +145,24 @@
       $('#objectname').html(item.title);
       $('#artistname').html(item.artist);
       // $('#titles').attr('data-toggle', 'popover').attr('title', 'test')
+
+      $('#info').popover('dispose');
+
       var info = $('#info').popover(
         {
           'container': 'body',
           'placement': 'bottom',
-          'trigger': 'hover'
+          'trigger': 'hover',
+          'title': item.address,
+          'content': item.desc1
+          // 'selector': 'true'
         }
       );
-      $('#info')//.attr('data-container', 'body')
-        // .attr('data-placement', 'bottom')
-        .attr('data-title', item.address)
-        .attr('data-content', item.desc1)
+      // $('#info').attr('title', item.address)
+      // $('#info').attr('data-title', item.address)
+      // $('#info').attr('data-content', item.desc1)
+      // $('#info').removeAttr('data-original-title')
+      // $('#info').removeAttr('title')
         // .attr('data-trigger', 'hover')
 
       // {
